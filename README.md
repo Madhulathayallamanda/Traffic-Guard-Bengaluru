@@ -1,15 +1,10 @@
 # TrafficGuard Bengaluru
 ### AI-Driven Illegal Parking & Congestion Intelligence Platform
 
-A 100% working, data-driven command-center dashboard that turns **298,277 real
-Bengaluru Traffic Police illegal-parking enforcement records** (Nov 2023 – Apr
-2024, the file you supplied) into live hotspot maps, congestion scores,
-predictive risk windows, and patrol recommendations.
+TrafficGuard Bengaluru is an AI-powered traffic analytics platform that analyzes real Bengaluru Traffic Police enforcement records to identify illegal parking hotspots and understand their impact on traffic congestion.
+The platform converts historical violation data into interactive maps, congestion scores, hotspot rankings, predictive risk windows, and practical enforcement recommendations through a simple dashboard.
 
-There is no mock data anywhere in this project. Every KPI, chart, map marker,
-score, and recommendation is computed at request time by the backend, directly
-from the dataset. Filter by vehicle type / police station / date range and
-every number on the page recalculates live.
+All maps, charts, scores, and recommendations shown in the dashboard are generated from the provided traffic enforcement dataset.
 
 ---
 
@@ -151,19 +146,19 @@ it isn't mistaken for a measured traffic-engineering result.
 
 ---
 
-## 5. Why this should win
+## 5. Key Highlights
 
 - **Real government data, not a toy dataset** — 298k actual enforcement
   records with GPS coordinates, vehicle types, timestamps, and police station
   attribution.
-- **Genuinely working, not a slide deck** — every score and recommendation is
+- **- Fully functional prototype with interactive analytics and reporting features** — every score and recommendation is
   computed live; changing a filter recomputes everything in under a second.
 - **Actionable, not just descriptive** — it doesn't just say "here are
   violations," it ranks locations by *traffic impact* and tells an officer
   what to do about each one.
 - **Predictive, not just historical** — the risk-window engine turns past
   enforcement data into a forecast of where/when to patrol next.
-- **Deployable today** — Bengaluru Traffic Police already collects this exact
+- **- Built using a modular architecture that can be extended for real-world deployment and future integrations.** — Bengaluru Traffic Police already collects this exact
   data (it's the file this runs on); this is the analytics layer they're
   missing, not a hypothetical pipeline.
 
