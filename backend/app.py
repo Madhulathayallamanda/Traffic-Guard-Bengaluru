@@ -49,6 +49,19 @@ RAW_CSV = os.path.join(DATA_DIR, "raw_violations.csv")
 PARQUET_PATH = os.path.join(DATA_DIR, "violations.parquet")
 CACHE_PATH = os.path.join(DATA_DIR, "static_cache.json")
 
+# Automatically download the dataset if it is missing
+if not os.path.exists(RAW_CSV):
+    print("Downloading dataset from Google Drive...")
+
+    os.makedirs(DATA_DIR, exist_ok=True)
+
+    gdown.download(
+        "https://drive.google.com/uc?id=1rhIjtjUhBcsaLaR5gTdafNwM1WwYr_bm",
+        RAW_CSV,
+        quiet=False,
+    )
+
+app = Flask(__name__, static_folder=None)
 app = Flask(__name__, static_folder=None)
 
 DF: pd.DataFrame = pd.DataFrame()
