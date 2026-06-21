@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="night">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrafficGuard Bengaluru — Illegal Parking & Congestion Command</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<style>
+:root{
+  --radius:10px;
+  --font-display:'Rajdhani',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+html[data-theme="night"]{
+  --bg:#0A0F1A; --surface:#111826; --surface-2:#161F30; --surface-3:#1C2740;
+  --text:#E6EBF2; --muted:#8A96A8; --border:#232C3D;
+  --amber:#FFB020; --red:#FF5A5A; --green:#2ED9A5; --blue:#4D9FFF;
+  --shadow: 0 8px 24px rgba(0,0,0,0.35);
+  --map-tile-filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+}
+html[data-theme="day"]{
+  --bg:#EEF1F6; --surface:#FFFFFF; --surface-2:#F4F6FA; --surface-3:#E9ECF3;
+  --text:#16202E; --muted:#5C6B7E; --border:#DCE2EA;
+  --amber:#B5740C; --red:#C7293D; --green:#0E8F66; --blue:#1C5FC9;
+  --shadow: 0 8px 24px rgba(20,30,50,0.08);
+  --map-tile-filter: none;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:var(--font-body); transition:background .3s, color .3s;
+}
+.mono{font-family:var(--font-mono);}
+.display{font-family:var(--font-display);}
+
+/* ---------- top bar ---------- */
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 22px; border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg, var(--surface), var(--bg));
+  position:sticky; top:0; z-index:50;
+}
+.brand{display:flex; align-items:center; gap:12px;}
+.brand .mark{
+  width:38px; height:38px; border-radius:9px;
+  background:conic-gradient(from 220deg, var(--green), var(--amber), var(--red), var(--green));
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-display); font-weight:700; color:#0A0F1A; font-size:16px;
+}
+.brand h1{font-family:var(--font-display); font-size:20px; font-weight:700; margin:0; letter-spacing:.3px;}
+.brand .sub{font-size:11px; color:var(--muted); margin-top:1px; letter-spacing:1px; text-transform:uppercase;}
+.topbar-right{display:flex; align-items:center; gap:18px;}
+.live-pill{
+  display:flex; align-items:center; gap:7px; font-size:12px; color:var(--muted);
+  border:1px solid var(--border); border-radius:20px; padding:6px 12px; background:var(--surface-2);
+}
+.live-dot{width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 0 0 var(--green); animation:pulse 1.8s infinite;}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(46,217,165,.55);} 70%{box-shadow:0 0 0 7px rgba(46,217,165,0);} 100%{box-shadow:0 0 0 0 rgba(46,217,165,0);}
+}
+.clock{font-family:var(--font-mono); font-size:13px; color:var(--text);}
+.theme-toggle{
+  display:flex; border:1px solid var(--border); border-radius:20px; overflow:hidden; background:var(--surface-2);
+}
+.theme-toggle button{
+  border:none; background:transparent; color:var(--muted); padding:6px 14px; font-size:12px; cursor:pointer;
+  font-family:var(--font-body); font-weight:600;
+}
+.theme-toggle button.active{background:var(--blue); color:#fff;}
+
+/* ---------- layout ---------- */
+.wrap{padding:20px 22px 60px; max-width:1480px; margin:0 auto;}
+.grid-top{display:grid; grid-template-columns: repeat(6, 1fr); gap:14px; margin-bottom:16px;}
+.kpi{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px;
+  box-shadow:var(--shadow);
+}
+.kpi .label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px;}
+.kpi .value{font-family:var(--font-display); font-size:24px; font-weight:700; margin-top:4px;}
+.kpi .value.amber{color:var(--amber);} .kpi .value.red{color:var(--red);} .kpi .value.green{color:var(--green);} .kpi .value.blue{color:var(--blue);}
+
+.filters{
+  display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px 16px;
+}
+.filters select, .filters input{
+  background:var(--surface-2); color:var(--text); border:1px solid var(--border); border-radius:7px;
+  padding:7px 10px; font-size:13px; font-family:var(--font-body);
+}
+.filters .ftitle{font-size:12px; color:var(--muted); margin-right:4px;}
+.filters button.reset{
+  background:transparent; border:1px solid var(--border); color:var(--muted); padding:7px 12px; border-radius:7px; cursor:pointer; font-size:12px;
+}
+
+.main-grid{display:grid; grid-template-columns: 1.65fr 1fr; gap:16px; margin-bottom:16px;}
+.panel{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;
+}
+.panel-head{
+  display:flex; align-items:center; justify-content:space-between; padding:13px 16px; border-bottom:1px solid var(--border);
+}
+.panel-head h3{margin:0; font-family:var(--font-display); font-size:15px; font-weight:700; letter-spacing:.3px;}
+.panel-head .tag{font-size:10.5px; color:var(--muted); font-family:var(--font-mono);}
+#map{height:480px; width:100%;}
+.legend{display:flex; gap:14px; padding:10px 16px; font-size:11.5px; color:var(--muted); border-top:1px solid var(--border);}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.legend i{width:9px; height:9px; border-radius:50%; display:inline-block;}
+
+.feed{height:480px; overflow-y:auto; padding:0;}
+.feed-item{
+  padding:10px 16px; border-bottom:1px solid var(--border); font-size:12.5px; display:flex; flex-direction:column; gap:2px;
+  animation:fadeIn .4s ease;
+}
+@keyframes fadeIn{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:translateY(0);}}
+.feed-item .row1{display:flex; justify-content:space-between; color:var(--muted); font-family:var(--font-mono); font-size:11px;}
+.feed-item .loc{color:var(--text); font-weight:500; margin-top:1px;}
+.feed-item .tags{margin-top:3px; display:flex; gap:6px; flex-wrap:wrap;}
+.chip{font-size:10px; padding:2px 7px; border-radius:10px; background:var(--surface-3); color:var(--muted); font-family:var(--font-mono);}
+.chip.veh{color:var(--blue);}
+
+.charts-grid{display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;}
+.chart-box{padding:16px; height:300px;}
+
+.heatcal{padding:16px;}
+.heatcal-grid{display:grid; grid-template-columns: 46px repeat(24, 1fr); gap:3px; align-items:center;}
+.heatcal-grid .hdr{font-size:9px; color:var(--muted); text-align:center; font-family:var(--font-mono);}
+.heatcal-grid .daylabel{font-size:11px; color:var(--muted); font-family:var(--font-mono);}
+.heatcal-cell{height:16px; border-radius:3px;}
+
+.table-wrap{overflow-x:auto;}
+table{width:100%; border-collapse:collapse; font-size:12.5px;}
+th{
+  text-align:left; padding:10px 14px; color:var(--muted); font-size:11px; text-transform:uppercase;
+  letter-spacing:.4px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--surface);
+}
+td{padding:10px 14px; border-bottom:1px solid var(--border); vertical-align:top;}
+.sev{padding:3px 9px; border-radius:12px; font-size:10.5px; font-weight:600; font-family:var(--font-mono); display:inline-block;}
+.sev.critical{background:rgba(255,90,90,.15); color:var(--red);}
+.sev.high{background:rgba(255,176,32,.15); color:var(--amber);}
+.sev.moderate{background:rgba(77,159,255,.15); color:var(--blue);}
+.sev.low{background:rgba(46,217,165,.15); color:var(--green);}
+.score-bar{height:6px; width:90px; background:var(--surface-3); border-radius:4px; overflow:hidden; margin-top:4px;}
+.score-bar i{display:block; height:100%; background:linear-gradient(90deg, var(--green), var(--amber), var(--red));}
+
+.predict-grid{display:grid; grid-template-columns: repeat(auto-fit, minmax(230px,1fr)); gap:12px; padding:16px;}
+.predict-card{
+  border:1px solid var(--border); border-radius:8px; padding:12px 14px; background:var(--surface-2);
+}
+.predict-card .loc{font-weight:600; font-size:13px; margin-bottom:6px; line-height:1.3;}
+.predict-card .windows{display:flex; gap:6px; flex-wrap:wrap; margin:7px 0;}
+.window-chip{
+  font-family:var(--font-mono); font-size:11px; background:var(--surface-3); color:var(--amber);
+  padding:3px 8px; border-radius:6px; border:1px solid var(--border);
+}
+.predict-card .meta{font-size:11px; color:var(--muted); font-family:var(--font-mono);}
+
+/* ---------- AI Smart Summary ---------- */
+.summary-city{
+  padding:14px 16px; font-size:13px; color:var(--muted); line-height:1.55; border-bottom:1px solid var(--border);
+}
+.summary-list{display:flex; flex-direction:column; gap:10px; padding:16px;}
+.summary-card{
+  display:flex; gap:12px; align-items:flex-start; border:1px solid var(--border); border-radius:8px;
+  padding:12px 14px; background:var(--surface-2);
+}
+.summary-card .sev-dot{width:9px; height:9px; border-radius:50%; margin-top:5px; flex:none;}
+.summary-card .body{flex:1;}
+.summary-card .quote{font-size:13px; line-height:1.5; color:var(--text); font-style:italic;}
+.summary-card .quote::before{content:'\201C';} .summary-card .quote::after{content:'\201D';}
+.summary-card .foot{display:flex; gap:10px; align-items:center; margin-top:6px; flex-wrap:wrap;}
+.saved-chip{
+  font-family:var(--font-mono); font-size:10.5px; background:rgba(46,217,165,.15); color:var(--green);
+  padding:2px 8px; border-radius:6px; border:1px solid var(--border);
+}
+.loc-chip{font-size:10.5px; color:var(--muted); font-family:var(--font-mono);}
+
+/* ---------- Reports toolbar / buttons ---------- */
+.reports-toolbar{display:flex; gap:8px; align-items:center;}
+.btn-report{
+  display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; font-family:var(--font-body);
+  background:var(--blue); color:#fff; border:none; border-radius:7px; padding:7px 12px; cursor:pointer; text-decoration:none;
+}
+.btn-report.secondary{background:transparent; color:var(--text); border:1px solid var(--border);}
+.btn-report:hover{filter:brightness(1.08);}
+.row-report-btn{
+  font-size:11px; font-family:var(--font-mono); color:var(--blue); border:1px solid var(--border); background:var(--surface-2);
+  border-radius:6px; padding:4px 9px; cursor:pointer; text-decoration:none; display:inline-block;
+}
+.row-report-btn:hover{background:var(--surface-3);}
+.saved-cell{font-family:var(--font-mono); color:var(--green); font-size:12px;}
+
+footer{text-align:center; padding:26px 0 10px; color:var(--muted); font-size:11.5px;}
+footer a{color:var(--blue); text-decoration:none;}
+
+@media (max-width:1100px){
+  .grid-top{grid-template-columns:repeat(3,1fr);}
+  .main-grid{grid-template-columns:1fr;}
+  .charts-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="mark">TG</div>
+    <div>
+      <h1>TrafficGuard <span style="color:var(--blue)">Bengaluru</span></h1>
+      <div class="sub">AI-Driven Illegal Parking &amp; Congestion Intelligence</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-pill"><span class="live-dot"></span> <span id="recordCount">—</span> records analysed</div>
+    <div class="clock mono" id="clock">--:--:--</div>
+    <div class="theme-toggle">
+      <button id="btnNight" class="active" onclick="setTheme('night')">Night Patrol</button>
+      <button id="btnDay" onclick="setTheme('day')">Daylight Ops</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="filters">
+    <span class="ftitle">FILTERS</span>
+    <select id="fVehicle"><option value="all">All vehicle types</option></select>
+    <select id="fStation"><option value="all">All police stations</option></select>
+    <input type="date" id="fFrom"> <span style="color:var(--muted);font-size:12px;">to</span> <input type="date" id="fTo">
+    <button class="reset" onclick="resetFilters()">Reset</button>
+    <span style="margin-left:auto;font-size:11px;color:var(--muted);font-family:var(--font-mono);" id="rangeLabel"></span>
+  </div>
+
+  <div class="grid-top">
+    <div class="kpi"><div class="label">Total Violations</div><div class="value blue" id="kpiTotal">—</div></div>
+    <div class="kpi"><div class="label">Hotspot Cells</div><div class="value amber" id="kpiCells">—</div></div>
+    <div class="kpi"><div class="label">Police Stations</div><div class="value" id="kpiStations">—</div></div>
+    <div class="kpi"><div class="label">Repeat Offenders</div><div class="value red" id="kpiRepeat">—</div></div>
+    <div class="kpi"><div class="label">Top Violation</div><div class="value" style="font-size:15px" id="kpiTopViolation">—</div></div>
+    <div class="kpi"><div class="label">Busiest Station</div><div class="value" style="font-size:15px" id="kpiBusiest">—</div></div>
+  </div>
+
+  <div class="main-grid">
+    <div class="panel">
+      <div class="panel-head">
+        <h3>🗺 Live Congestion Heatmap</h3>
+        <span class="tag">GPS-clustered · real coordinates</span>
+      </div>
+      <div id="map"></div>
+      <div class="legend">
+        <span><i style="background:var(--red)"></i> Critical (≥70)</span>
+        <span><i style="background:var(--amber)"></i> High (40–69)</span>
+        <span><i style="background:var(--blue)"></i> Moderate (18–39)</span>
+        <span><i style="background:var(--green)"></i> Low (&lt;18)</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>📡 Patrol Feed</h3>
+        <span class="tag">historical replay</span>
+      </div>
+      <div class="feed" id="feed"></div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="panel chart-box"><canvas id="chartMonthly"></canvas></div>
+    <div class="panel chart-box"><canvas id="chartVehicle"></canvas></div>
+  </div>
+  <div class="charts-grid">
+    <div class="panel chart-box"><canvas id="chartViolation"></canvas></div>
+    <div class="panel chart-box"><canvas id="chartStation"></canvas></div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-head"><h3>⏱ Violation Density — Day × Hour</h3><span class="tag">when illegal parking peaks</span></div>
+    <div class="heatcal" id="heatcal"></div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-head"><h3>🔮 Predictive Risk Windows</h3><span class="tag">statistical forecast from historical patterns</span></div>
+    <div class="predict-grid" id="predictGrid"></div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-head"><h3>🤖 AI Smart Summary</h3><span class="tag">plain-language read-out, generated from real data</span></div>
+    <div class="summary-city" id="summaryCity">Loading summary…</div>
+    <div class="summary-list" id="summaryList"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h3>🚨 Top Congestion Hotspots &amp; Recommended Action</h3>
+      <div class="reports-toolbar">
+        <span class="tag" style="margin-right:6px;">ranked by Congestion Impact Score</span>
+        <button class="btn-report secondary" onclick="downloadCSV()">📄 CSV</button>
+        <button class="btn-report" onclick="downloadBulkPDF()">📑 PDF Report (Top 5)</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Location</th><th>Police Station</th><th>Violations</th><th>Score</th><th>Severity</th><th>Top Vehicle</th><th>Recommended Action</th><th>Saved</th><th>Report</th></tr></thead>
+        <tbody id="hotspotTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    Built on 298,000+ real Bengaluru Traffic Police illegal-parking enforcement records (Nov 2023 – Apr 2024).
+    Every chart, score and recommendation above is computed live from that dataset — nothing on this page is simulated.
+  </footer>
+</div>
+
+<script>
+const API = '';
+let map, heatLayer, markersLayer;
+let charts = {};
+
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('btnNight').classList.toggle('active', t==='night');
+  document.getElementById('btnDay').classList.toggle('active', t==='day');
+  localStorage.setItem('tg_theme', t);
+  Object.values(charts).forEach(c=>c && c.update());
+}
+(function(){
+  const saved = localStorage.getItem('tg_theme') || 'night';
+  document.documentElement.setAttribute('data-theme', saved);
+})();
+
+function tick(){
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-IN', {hour12:false});
+}
+setInterval(tick, 1000); tick();
+
+function qs(params){
+  const p = new URLSearchParams();
+  Object.entries(params).forEach(([k,v])=>{ if(v && v!=='all') p.set(k,v); });
+  return p.toString();
+}
+function currentFilters(){
+  return {
+    vehicle_type: document.getElementById('fVehicle').value,
+    police_station: document.getElementById('fStation').value,
+    date_from: document.getElementById('fFrom').value,
+    date_to: document.getElementById('fTo').value,
+  };
+}
+function resetFilters(){
+  document.getElementById('fVehicle').value='all';
+  document.getElementById('fStation').value='all';
+  document.getElementById('fFrom').value='';
+  document.getElementById('fTo').value='';
+  refreshAll();
+}
+
+function initMap(){
+  map = L.map('map', {zoomControl:true, attributionControl:false}).setView([12.9716, 77.5946], 11.3);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom:19}).addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
+}
+
+const sevColor = {critical:'#FF5A5A', high:'#FFB020', moderate:'#4D9FFF', low:'#2ED9A5'};
+
+async function loadFilters(){
+  const r = await fetch(`${API}/api/filters`).then(r=>r.json());
+  const vSel = document.getElementById('fVehicle');
+  r.vehicle_types.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; vSel.appendChild(o); });
+  const sSel = document.getElementById('fStation');
+  r.police_stations.forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; sSel.appendChild(o); });
+  document.getElementById('rangeLabel').textContent = `Dataset: ${r.date_min} → ${r.date_max}`;
+}
+
+async function loadOverview(){
+  const f = currentFilters();
+  const r = await fetch(`${API}/api/overview?${qs(f)}`).then(r=>r.json());
+  document.getElementById('kpiTotal').textContent = (r.total_violations||0).toLocaleString();
+  document.getElementById('kpiCells').textContent = (r.unique_locations||0).toLocaleString();
+  document.getElementById('kpiStations').textContent = (r.unique_police_stations||0).toLocaleString();
+  document.getElementById('kpiRepeat').textContent = (r.repeat_offender_vehicles||0).toLocaleString();
+  document.getElementById('kpiTopViolation').textContent = r.top_violation_type || '—';
+  document.getElementById('kpiBusiest').textContent = r.busiest_police_station || '—';
+  document.getElementById('recordCount').textContent = (r.total_violations||0).toLocaleString();
+}
+
+async function loadHeat(){
+  const f = currentFilters();
+  const pts = await fetch(`${API}/api/heatpoints?${qs(f)}`).then(r=>r.json());
+  if(heatLayer) map.removeLayer(heatLayer);
+  heatLayer = L.heatLayer(pts.map(p=>[p[0],p[1],Math.min(p[2],40)]), {radius:18, blur:22, maxZoom:14, minOpacity:0.35}).addTo(map);
+}
+
+async function loadHotspots(){
+  const f = currentFilters();
+  const hs = await fetch(`${API}/api/hotspots?${qs(f)}&top_n=40`).then(r=>r.json());
+  if(markersLayer){
+    markersLayer.clearLayers();
+    hs.forEach(h=>{
+      if(h.lat==null) return;
+      const r = 6 + (h.congestion_score/100)*14;
+      const m = L.circleMarker([h.lat, h.lon], {
+        radius:r, color:sevColor[h.severity], fillColor:sevColor[h.severity], fillOpacity:0.55, weight:1.5
+      });
+      m.bindPopup(`<b>${h.location.slice(0,60)}</b><br>Station: ${h.police_station}<br>Violations: ${h.violations}<br>Score: ${h.congestion_score}<br>Action: <b>${h.recommended_action}</b>`);
+      markersLayer.addLayer(m);
+    });
+  }
+
+  const tbody = document.getElementById('hotspotTable');
+  tbody.innerHTML = hs.slice(0,20).map(h=>`
+    <tr>
+      <td>${h.location.split(',').slice(0,2).join(', ')}<div style="color:var(--muted);font-size:10.5px;margin-top:2px;">${h.junction}</div></td>
+      <td>${h.police_station}</td>
+      <td class="mono">${h.violations.toLocaleString()}</td>
+      <td><span class="mono">${h.congestion_score}</span><div class="score-bar"><i style="width:${h.congestion_score}%"></i></div></td>
+      <td><span class="sev ${h.severity}">${h.severity.toUpperCase()}</span></td>
+      <td>${h.top_vehicle_type||'—'}</td>
+      <td>${h.recommended_action}</td>
+      <td class="saved-cell">${h.traffic_saved_minutes!=null ? h.traffic_saved_minutes+'m' : '—'}</td>
+      <td><a class="row-report-btn" href="${API}/api/report/pdf/${encodeURIComponent(h.cell_id)}" target="_blank" rel="noopener">PDF ↓</a></td>
+    </tr>`).join('');
+}
+
+async function loadPredict(){
+  const r = await fetch(`${API}/api/predict?top_n=6`).then(r=>r.json());
+  document.getElementById('predictGrid').innerHTML = r.map(p=>`
+    <div class="predict-card">
+      <div class="loc">${p.location.split(',').slice(0,2).join(', ')}</div>
+      <div class="meta">${p.police_station} · Score ${p.congestion_score}</div>
+      <div class="windows">${p.predicted_high_risk_hours.map(h=>`<span class="window-chip">${h}</span>`).join('')}</div>
+      <div class="meta">Peak day: <b style="color:var(--text)">${p.predicted_peak_day}</b> · ${p.confidence}% of violations fall in these windows</div>
+    </div>`).join('');
+}
+
+async function loadFeed(){
+  const r = await fetch(`${API}/api/feed?n=14`).then(r=>r.json());
+  document.getElementById('feed').innerHTML = r.map(it=>`
+    <div class="feed-item">
+      <div class="row1"><span>${it.date} ${it.time}</span><span>${it.police_station}</span></div>
+      <div class="loc">${it.location}</div>
+      <div class="tags"><span class="chip veh">${it.vehicle_type}</span>${it.violations.map(v=>`<span class="chip">${v}</span>`).join('')}</div>
+    </div>`).join('');
+}
+
+const sevDot = {critical:'#FF5A5A', high:'#FFB020', moderate:'#4D9FFF', low:'#2ED9A5'};
+
+async function loadSmartSummary(){
+  const r = await fetch(`${API}/api/smart-summary`).then(r=>r.json());
+  document.getElementById('summaryCity').textContent = r.city_summary || '';
+  const list = r.hotspot_summaries || [];
+  document.getElementById('summaryList').innerHTML = list.map(s=>`
+    <div class="summary-card">
+      <span class="sev-dot" style="background:${sevDot[s.severity]||'#999'}"></span>
+      <div class="body">
+        <div class="quote">${s.summary}</div>
+        <div class="foot">
+          <span class="loc-chip">${s.location}</span>
+          <span class="sev ${s.severity}" style="font-size:9.5px;">${s.severity.toUpperCase()}</span>
+          <span class="saved-chip">⏱ Saves ~${s.traffic_saved_minutes}m if cleared</span>
+          <a class="row-report-btn" href="${API}/api/report/pdf/${encodeURIComponent(s.cell_id)}" target="_blank" rel="noopener">PDF ↓</a>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function downloadCSV(){
+  const f = currentFilters();
+  window.open(`${API}/api/report/csv?${qs(f)}&top_n=40`, '_blank');
+}
+function downloadBulkPDF(){
+  const f = currentFilters();
+  window.open(`${API}/api/report/pdf-bulk?${qs(f)}&top_n=5`, '_blank');
+}
+
+function destroyChart(id){ if(charts[id]){ charts[id].destroy(); } }
+
+async function loadTrends(){
+  const f = currentFilters();
+  const t = await fetch(`${API}/api/trends?${qs(f)}`).then(r=>r.json());
+  if(!t.monthly) return;
+
+  const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--border');
+  const textColor = getComputedStyle(document.documentElement).getPropertyValue('--muted');
+  Chart.defaults.color = textColor.trim() || '#8A96A8';
+  Chart.defaults.font.family = "'Inter',sans-serif";
+
+  destroyChart('monthly');
+  charts.monthly = new Chart(document.getElementById('chartMonthly'), {
+    type:'line',
+    data:{ labels:t.monthly.map(m=>m.month_label), datasets:[{
+      label:'Violations / month', data:t.monthly.map(m=>m.count),
+      borderColor:'#4D9FFF', backgroundColor:'rgba(77,159,255,0.15)', fill:true, tension:0.35, pointRadius:3
+    }]},
+    options:{plugins:{title:{display:true,text:'Monthly Violation Trend',font:{family:"'Rajdhani',sans-serif",size:14,weight:'700'}}, legend:{display:false}}, scales:{x:{grid:{color:gridColor}},y:{grid:{color:gridColor}}}}
+  });
+
+  destroyChart('vehicle');
+  charts.vehicle = new Chart(document.getElementById('chartVehicle'), {
+    type:'doughnut',
+    data:{ labels:t.by_vehicle_type.map(v=>v.vehicle_type), datasets:[{
+      data:t.by_vehicle_type.map(v=>v.count),
+      backgroundColor:['#4D9FFF','#FFB020','#FF5A5A','#2ED9A5','#A66DFF','#FF7A45','#36CFC9','#9CCC65','#F06292','#90A4AE']
+    }]},
+    options:{plugins:{title:{display:true,text:'Violations by Vehicle Type',font:{family:"'Rajdhani',sans-serif",size:14,weight:'700'}}, legend:{position:'right', labels:{boxWidth:10,font:{size:10.5}}}}}
+  });
+
+  destroyChart('violation');
+  charts.violation = new Chart(document.getElementById('chartViolation'), {
+    type:'bar',
+    data:{ labels:t.by_violation_type.map(v=>v.violation_type), datasets:[{
+      label:'Count', data:t.by_violation_type.map(v=>v.count), backgroundColor:'#FFB020', borderRadius:5
+    }]},
+    options:{indexAxis:'y', plugins:{title:{display:true,text:'Top Violation Types',font:{family:"'Rajdhani',sans-serif",size:14,weight:'700'}}, legend:{display:false}}, scales:{x:{grid:{color:gridColor}},y:{grid:{display:false}}}}
+  });
+
+  destroyChart('station');
+  charts.station = new Chart(document.getElementById('chartStation'), {
+    type:'bar',
+    data:{ labels:t.by_police_station.map(s=>s.police_station), datasets:[{
+      label:'Count', data:t.by_police_station.map(s=>s.count), backgroundColor:'#2ED9A5', borderRadius:5
+    }]},
+    options:{plugins:{title:{display:true,text:'Top Police Stations by Violations',font:{family:"'Rajdhani',sans-serif",size:14,weight:'700'}}, legend:{display:false}}, scales:{x:{grid:{display:false}},y:{grid:{color:gridColor}}}}
+  });
+
+  renderHeatcal(t.hour_dow_matrix);
+}
+
+function renderHeatcal(matrix){
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const max = Math.max(...matrix.flat(), 1);
+  let html = '<div class="heatcal-grid">';
+  html += '<div></div>' + Array.from({length:24},(_,h)=>`<div class="hdr">${h}</div>`).join('');
+  matrix.forEach((row, d)=>{
+    html += `<div class="daylabel">${days[d]}</div>`;
+    row.forEach(v=>{
+      const intensity = v/max;
+      const color = intensity===0 ? 'var(--surface-3)' : `rgba(255,${Math.round(176-90*intensity)},${Math.round(80-60*intensity)},${0.25+0.7*intensity})`;
+      html += `<div class="heatcal-cell" title="${v} violations" style="background:${color}"></div>`;
+    });
+  });
+  html += '</div>';
+  document.getElementById('heatcal').innerHTML = html;
+}
+
+async function refreshAll(){
+  await Promise.allSettled([loadOverview(), loadHeat(), loadHotspots(), loadTrends()]);
+}
+
+document.getElementById('fVehicle').addEventListener('change', refreshAll);
+document.getElementById('fStation').addEventListener('change', refreshAll);
+document.getElementById('fFrom').addEventListener('change', refreshAll);
+document.getElementById('fTo').addEventListener('change', refreshAll);
+
+(async function init(){
+  try{ initMap(); }catch(e){ console.error('Map init failed (offline/CDN unreachable?):', e); }
+  try{ await loadFilters(); }catch(e){ console.error('loadFilters failed:', e); }
+  try{ await loadOverview(); }catch(e){ console.error('loadOverview failed:', e); }
+  try{ await loadHeat(); }catch(e){ console.error('loadHeat failed:', e); }
+  try{ await loadHotspots(); }catch(e){ console.error('loadHotspots failed:', e); }
+  try{ await loadTrends(); }catch(e){ console.error('loadTrends failed:', e); }
+  try{ await loadPredict(); }catch(e){ console.error('loadPredict failed:', e); }
+  try{ await loadFeed(); }catch(e){ console.error('loadFeed failed:', e); }
+  try{ await loadSmartSummary(); }catch(e){ console.error('loadSmartSummary failed:', e); }
+  setInterval(loadFeed, 6000);
+})();
+</script>
+</body>
+</html>
