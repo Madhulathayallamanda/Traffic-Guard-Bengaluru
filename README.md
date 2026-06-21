@@ -178,9 +178,7 @@ the loop with live detection:
    zero changes — it already scores any record with those fields. New
    detections simply join the same hotspot ranking in real time.
 
-This keeps the (already real, already working) analytics core completely
-decoupled from camera hardware, so the project demos perfectly today and has
-a clear, credible path to full CCTV integration tomorrow.
+This design allows the existing analytics pipeline to be extended with live CCTV detections in the future without significant architectural changes.
 
 ---
 
