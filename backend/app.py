@@ -63,7 +63,7 @@ if not os.path.exists(RAW_CSV):
     )
 
 app = Flask(__name__, static_folder=None)
-app = Flask(__name__, static_folder=None)
+
 
 DF: pd.DataFrame = pd.DataFrame()
 STATIC_CACHE: dict = {}
