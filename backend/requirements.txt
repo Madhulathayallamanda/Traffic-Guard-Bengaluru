@@ -10,4 +10,4 @@ matplotlib>=3.8
 # Optional — only needed if you want to read/write violations.parquet directly.
 # If unavailable, app.py automatically falls back to building the dataset
 # from data/raw_violations.csv at startup (slower one-time load, same result).
-pyarrow==17.0.0
+#pyarrow==17.0.0
