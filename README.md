@@ -95,7 +95,7 @@ frontend server needed.
 
 ### Quick sanity check
 ```bash
-curl http://localhost:8000/api/health
+curl http://localhost:8080/api/health
 # {"status":"ok","records_loaded":298277,...}
 ```
 
