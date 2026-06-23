@@ -1,5 +1,5 @@
 # TrafficGuard Bengaluru
-### TrafficGuard: Smart Parking & Congestion Intelligence Platform
+### TrafficGuard: AI-Driven Illegal Parking & Congestion Intelligence
 
 TrafficGuard Bengaluru is an AI-powered traffic analytics platform that analyzes real Bengaluru Traffic Police enforcement records to identify illegal parking hotspots and understand their impact on traffic congestion.
 The platform converts historical violation data into interactive maps, congestion scores, hotspot rankings, predictive risk windows, and practical enforcement recommendations through a simple dashboard.
