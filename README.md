@@ -90,7 +90,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Then open **http://localhost:8000** in your browser. That's it — no separate
+Then open **http://localhost:8080** in your browser. That's it — no separate
 frontend server needed.
 
 ### Quick sanity check
