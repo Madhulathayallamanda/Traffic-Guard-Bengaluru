@@ -63,6 +63,7 @@ if not os.path.exists(RAW_CSV):
     )
 
 app = Flask(__name__, static_folder=None)
+CORS(app)
 
 @app.route("/")
 def index():
