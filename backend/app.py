@@ -34,7 +34,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import gdown
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
-
+from flask_cors import CORS
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
