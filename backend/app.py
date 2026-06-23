@@ -63,6 +63,12 @@ if not os.path.exists(RAW_CSV):
     )
 
 app = Flask(__name__, static_folder=None)
+@app.route("/")
+def home():
+    return {
+        "status": "running",
+        "message": "TrafficGuard Bengaluru API"
+    }
 
 
 DF: pd.DataFrame = pd.DataFrame()
