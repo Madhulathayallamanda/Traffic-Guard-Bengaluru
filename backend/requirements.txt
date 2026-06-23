@@ -10,5 +10,7 @@ matplotlib>=3.8
 # Production server
 gunicorn>=23.0.0
 
+flask-cors
+
 # Optional parquet support
 # pyarrow==17.0.0
