@@ -17,7 +17,7 @@ violations.parquet still works and preprocess.py is unchanged.
 
 Run:
     python app.py
-Then open http://localhost:8000 in a browser (the dashboard is served here too).
+Then open http://localhost:8080 in a browser (the dashboard is served here too).
 """
 
 import ast
@@ -820,6 +820,6 @@ load_data()
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
-        port=int(os.environ.get("PORT", 8000)),
+        port=int(os.environ.get("PORT", 8080)),
         debug=False,
     )
